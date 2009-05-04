@@ -27,16 +27,20 @@ OUTPUT_DIR = settings.MEDIA_ROOT.rstrip('/')
 BLAST_DBS = [
         # Example:
         #('completedb', 'Complete DB'),
+        ('completedb', 'Complete DB'),
+        ('sampledb', 'Sample DB'),
 ]
 
 # Specify paths to the actual databases
 BLAST_DB_PATHS = {
         # Example:
         #'completedb': '/var/local/blastdbs/complete.db',
+        'completedb':'/Users/caiyizhi/Desktop/db.fasta',
+        'sampledb':'/Users/caiyizhi/Dropbox/Class/Problem_solving/Jelesko_Django/sequence_data/db.fasta'
 }
 
 # This should be one of the above. e.g., 'Complete DB'
-INITIAL_DB_CHOICE = ''
+INITIAL_DB_CHOICE = 'sampledb'
 
 MAPPING_HEADER = "Jelesko ID\tGI\tGenus species\n"
 

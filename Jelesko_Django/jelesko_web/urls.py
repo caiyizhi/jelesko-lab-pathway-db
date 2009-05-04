@@ -15,4 +15,8 @@ urlpatterns = patterns('',
     # Uncomment the next line to enable the admin:
     (r'^admin/(.*)', admin.site.root),
     (r'^search/', include('jelesko_web.blast_fasta.urls')),
+
+    # DO NOT USE IN PRODUCTION SITE
+    (r'^site_media/(?P<path>.*)$', 'django.views.static.serve',
+           {'document_root': '/Users/caiyizhi/django_data', 'show_indexes': True}),
 )
