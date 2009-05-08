@@ -255,12 +255,11 @@ def ssearch(request):
 
 def blast(request):
     """docstring for blast"""
-
-    my_blast_dir = SEQUENCE_DATA_DIR
-    my_blast_file = SEQUENCE_DATA_DIR + '/seq.fasta'
+    my_blast_dir = '/Users/caiyizhi/Desktop'
+    my_blast_file = my_blast_dir + '/seq.fasta'
     sqfile = open(my_blast_file, 'w')
-    my_blast_db = SEQUENCE_DATA_DIR + '/db.fasta'
-    if request.method == 'GET':
+    my_blast_db = my_blast_dir + '/db.fasta'
+    if request.method == 'POST':
         f = BlastForm(request.GET)
         if not f.is_valid():
             return render_to_response('blast_fasta/blast.html', {'form'
@@ -299,8 +298,7 @@ def blast(request):
                             annotation,
                             download_date,
                             ))
-    return render_to_response('blast_fasta/blast2.html', {'form': f,
-                              'res': res})
+        return render_to_response('blast_fasta/blast.html', {'form': f, 'res': res})
 
 
 def _make_jelesko_id(protein, suffix_no=None):
