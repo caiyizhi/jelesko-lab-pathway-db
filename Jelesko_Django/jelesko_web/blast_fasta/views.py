@@ -270,7 +270,7 @@ def _run_blast_program(
     """
 
     # Get the URL to submit to
-    submit_to = reverse(view_name)
+    submit_to = reverse('blast')
 
     # the form was submitted
     if request.method == 'POST':
