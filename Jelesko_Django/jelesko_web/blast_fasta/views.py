@@ -35,7 +35,7 @@ BLAST_DB_PATHS = {
         # Example:
         #'completedb': '/var/local/blastdbs/complete.db',
         'completedb':'/Users/caiyizhi/Desktop/db.fasta',
-        'sampledb':'/Users/caiyizhi/Dropbox/Class/Problem_solving/Jelesko_Django/sequence_data/db.fasta'
+     'sampledb':'/Users/caiyizhi/Dropbox/Class/Problem_solving/Jelesko_Django/sequence_data/db.fasta'
 }
 
 # This should be one of the above. e.g., 'Complete DB'
@@ -296,18 +296,9 @@ def _run_blast_program(
         query_file.close()
 
         # start setting up the command
-        if f.cleaned_data['number_sequence']:
-            b = f.cleaned_data['number_sequence']
-            cmd.extend(('-b', str(b)))
-        if f.cleaned_data['number_alignment_highest']:
-            E = f.cleaned_data['number_alignment_highest']
-            cmd.extend(('-E', str(E)))
-        if f.cleaned_data['number_alignment_lowest']:
-            F = f.cleaned_data['number_alignment_lowest']
-            cmd.extend(('-F', str(F)))
-        s = f.cleaned_data['matrix_file']
-        if use_ktup:
-            kt = f.cleaned_data['ktup']
+        if f.cleaned_data['evalue']:
+            E = f.cleaned_data['evalue']
+            cmd.extend(('-e', str(E)))
         db = f.cleaned_data['database_option']
         subject = BLAST_DB_PATHS[db]
 
@@ -319,10 +310,8 @@ def _run_blast_program(
         )
 
         cmd.extend(
-            ('-s', s, '-O', full_outfile_path, query_filename, subject)
+            ('-o', full_outfile_path, '-i', query_filename, '-d', subject)
         )
-        if use_ktup:
-            cmd.append(kt)
 
         start = datetime.datetime.now()
         subprocess.check_call(cmd)
@@ -385,7 +374,7 @@ def blast2(request):
 	"""docstring for blast2"""
 	cmd = [BLAST_PROG, '-p blastp']
 	template_path = 'blast_fasta/blast2.html'
-	return _run_blast_program(request, cmd, template_path, 'blast')
+	return _run_blast_program(request, cmd, template_path)
 
 
 def blast(request):
