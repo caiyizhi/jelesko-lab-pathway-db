@@ -354,6 +354,7 @@ def _run_blast_program(
                 template_path,
                 {'form': form, 'submit_to': submit_to}
         )
+                                     
 
 
 def fasta(request):
@@ -376,8 +377,12 @@ def blast(request):
 	('-p', program)
 	)
 	template_path = 'blast_fasta/blast.html'
+<<<<<<< HEAD:Jelesko_Django/jelesko_web/blast_fasta/views.py
 	return _run_blast_program(request, cmd, template_path, 'blast')
 
+=======
+	return _run_blast_program(request, cmd, template_path, 'blast') 
+>>>>>>> master:Jelesko_Django/jelesko_web/blast_fasta/views.py
 
 
 def _make_jelesko_id(protein, suffix_no=None):
