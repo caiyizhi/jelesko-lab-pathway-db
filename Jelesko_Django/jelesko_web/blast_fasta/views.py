@@ -22,7 +22,6 @@ import parsing_fasta
 # Output files will be stored under the MEDIA_ROOT found in settings.py.
 OUTPUT_DIR = settings.MEDIA_ROOT.rstrip('/')
 
-
 # Fill this in with appropriate options of BLASTDB formatted databases
 BLAST_DBS = [
         # Example:
@@ -43,6 +42,10 @@ BLAST_DB_PATHS = {
 INITIAL_DB_CHOICE = 'sampledb'
 
 MAPPING_HEADER = "Jelesko ID\tGI\tGenus species\n"
+
+FASTA_PROG = 'fasta35'
+SSEARCH_PROG = 'ssearch35'
+BLAST_PROG = 'blastall'
 
 class BlastForm(forms.Form):
 
@@ -133,7 +136,13 @@ def _timedelta_to_minutes(td):
     return minutes
 
 
-def _run_fasta_program(request, cmd, template_path, use_ktup=True):
+def _run_fasta_program(
+        request,
+        cmd,
+        template_path,
+        view_name,
+        use_ktup=True
+    ):
     """
     Runs a FASTA type program (e.g., fasta35, ssearch35)
 
@@ -141,8 +150,14 @@ def _run_fasta_program(request, cmd, template_path, use_ktup=True):
     - `request`: a Django HTTPRequest type object
     - `cmd`: a list containing the initial command (e.g., ['fasta35', '-q'])
     - `template_path`: path to the template for the result
+    - `view_name`: the name of the view to send a search request to
+      (this should usually come from a url name in urls.py)
+    - `use_ktup`: if `True`, uses the ktup paramater
 
     """
+
+    # Get the URL to submit to
+    submit_to = reverse(view_name)
 
     # the form was submitted
     if request.method == 'POST':
@@ -161,7 +176,7 @@ def _run_fasta_program(request, cmd, template_path, use_ktup=True):
             print "Not valid."
             return render_to_response(
                     template_path,
-                    {'form': f, 'res': ''}
+                    {'form': f, 'res': '', 'submit_to': submit_to}
             )
 
         query_file.write(f.cleaned_data['seq'])
@@ -226,6 +241,7 @@ def _run_fasta_program(request, cmd, template_path, use_ktup=True):
                 template_path,
                 {
                     'form': f,
+                    'submit_to': submit_to,
                     'resdata': resdata,
                     'duration': duration,
                 }
@@ -236,21 +252,140 @@ def _run_fasta_program(request, cmd, template_path, use_ktup=True):
         form = FastaForm()
         return render_to_response(
                 template_path,
-                {'form': form}
+                {'form': form, 'submit_to': submit_to}
+        )
+
+def _run_blast_program(
+        request,
+        cmd,
+        template_path
+    ):
+    """
+    Runs a BLAST type program (e.g., blastall)
+
+    :Parameters:
+    - `request`: a Django HTTPRequest type object
+    - `cmd`: a list containing the initial command (e.g., ['fasta35', '-q'])
+    - `template_path`: path to the template for the result
+    """
+
+    # Get the URL to submit to
+    submit_to = reverse(view_name)
+
+    # the form was submitted
+    if request.method == 'POST':
+        timestamp = datetime.datetime.now()
+        outfile_dir = timestamp.strftime(models.SEARCH_RESULTS_DIR)
+        full_outfile_dir = os.sep.join(
+            (OUTPUT_DIR, outfile_dir)
+        )
+        os.mkdir(full_outfile_dir)
+
+        query_filename = os.sep.join((full_outfile_dir, 'query.faa'))
+        query_file = open(query_filename, 'w')
+
+        f = BlastForm(request.POST)
+        if not f.is_valid():
+            print "Not valid."
+            return render_to_response(
+                    template_path,
+                    {'form': f, 'res': '', 'submit_to': submit_to}
+            )
+
+        query_file.write(f.cleaned_data['seq'])
+        query_file.close()
+
+        # start setting up the command
+        if f.cleaned_data['number_sequence']:
+            b = f.cleaned_data['number_sequence']
+            cmd.extend(('-b', str(b)))
+        if f.cleaned_data['number_alignment_highest']:
+            E = f.cleaned_data['number_alignment_highest']
+            cmd.extend(('-E', str(E)))
+        if f.cleaned_data['number_alignment_lowest']:
+            F = f.cleaned_data['number_alignment_lowest']
+            cmd.extend(('-F', str(F)))
+        s = f.cleaned_data['matrix_file']
+        if use_ktup:
+            kt = f.cleaned_data['ktup']
+        db = f.cleaned_data['database_option']
+        subject = BLAST_DB_PATHS[db]
+
+        # TODO: change this to take user-defined name later
+        outfile_name = '%s_results.txt' % cmd[0]
+        outfile_path = os.sep.join((outfile_dir, outfile_name))
+        full_outfile_path = os.sep.join(
+            (full_outfile_dir, outfile_name)
+        )
+
+        cmd.extend(
+            ('-s', s, '-O', full_outfile_path, query_filename, subject)
+        )
+        if use_ktup:
+            cmd.append(kt)
+
+        start = datetime.datetime.now()
+        subprocess.check_call(cmd)
+        end = datetime.datetime.now()
+        duration = _timedelta_to_minutes(end - start)
+
+        fasta_output = open(full_outfile_path)
+        try:
+            res = parsing_fasta.parsing_fasta(fasta_output)
+        except TypeError:
+            res = []
+
+        fasta_output.close()
+        os.remove(query_filename)
+
+        search_result = models.Search(
+            program=cmd[0],
+            results_file=outfile_path,
+            timestamp=timestamp
+        )
+        search_result.save()
+
+        resdata = {
+            'records': res,
+            'search_id': search_result.id
+        }
+
+        return render_to_response(
+                template_path,
+                {
+                    'form': f,
+                    'submit_to': submit_to,
+                    'resdata': resdata,
+                    'duration': duration,
+                }
+        )
+
+    # user has not sent a POST request; present user with blank form
+    else:
+        form = FastaForm()
+        return render_to_response(
+                template_path,
+                {'form': form, 'submit_to': submit_to}
         )
 
 
 def fasta(request):
-    cmd = ['fasta35', '-q']
+    cmd = [FASTA_PROG, '-q']
     template_path = 'blast_fasta/fasta.html'
-    return _run_fasta_program(request, cmd, template_path)
+    return _run_fasta_program(request, cmd, template_path, 'fasta')
 
 
 def ssearch(request):
-    cmd = ['ssearch35', '-q']
+    cmd = [SSEARCH_PROG, '-q']
     template_path = 'blast_fasta/ssearch.html'
-    return _run_fasta_program(request, cmd, template_path,
+    return _run_fasta_program(request, cmd, template_path, 'ssearch',
             use_ktup=False)
+
+def blast2(request):
+	"""docstring for blast2"""
+	cmd = [BLAST_PROG, '-p blastp']
+	template_path = 'blast_fasta/blast2.html'
+	return _run_blast_program(request, cmd, template_path, 'blast')
 
 
 def blast(request):
@@ -312,7 +447,10 @@ def _make_jelesko_id(protein, suffix_no=None):
 
     """
 
-    genus, species = protein.genus_species.split()[:2]
+    try:
+        genus, species = protein.genus_species.split()[:2]
+    except:
+        genus, species = ('Unknown', 'unknown')
     genus = genus[:3]
     species = species[:3]
     if suffix_no is not None:
